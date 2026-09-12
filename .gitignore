@@ -1,0 +1,16 @@
+.DS_Store
+# Generated from project.yml by XcodeGen; run `xcodegen generate` after cloning.
+*.xcodeproj/
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+Pods/
+.swiftpm/

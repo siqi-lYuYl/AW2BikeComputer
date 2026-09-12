@@ -1,0 +1,50 @@
+name: HeartRateEcho
+
+options:
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "18.0"
+    watchOS: "11.0"
+
+settings:
+  base:
+    APP_BUNDLE_ID: com.heartrateecho.HeartRateEcho
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    GENERATE_INFOPLIST_FILE: NO
+    ENABLE_PREVIEWS: YES
+    SWIFT_EMIT_LOC_STRINGS: YES
+
+targets:
+  HeartRateEcho:
+    type: application
+    platform: iOS
+    sources:
+      - path: iOS
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
+        PRODUCT_NAME: HeartRateEcho
+        INFOPLIST_FILE: iOS/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
+    dependencies:
+      - target: HeartRateEchoWatch
+        embed: true
+        codeSign: true
+
+  HeartRateEchoWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - path: Watch
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).watchkitapp
+        PRODUCT_NAME: HeartRateEchoWatch
+        INFOPLIST_FILE: Watch/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Watch/HeartRateEchoWatch.entitlements
+        TARGETED_DEVICE_FAMILY: "4"
