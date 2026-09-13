@@ -1,7 +1,7 @@
 import Foundation
 
-/// Wire format for heart rate samples passed from the Watch app to the iPhone app
-/// over WatchConnectivity. Dictionary-based because `WCSession` only accepts
+/// Wire format for messages passed between the Watch and iPhone apps over
+/// WatchConnectivity. Dictionary-based because `WCSession` only accepts
 /// property-list types.
 enum HeartRatePayload {
 
@@ -9,6 +9,7 @@ enum HeartRatePayload {
         static let bpm = "bpm"
         static let timestamp = "ts"
         static let streaming = "streaming"
+        static let command = "cmd"
     }
 
     struct Sample {
@@ -17,6 +18,8 @@ enum HeartRatePayload {
         /// False when the Watch has stopped its workout session and is signing off.
         let streaming: Bool
     }
+
+    // MARK: Watch → iPhone
 
     static func encode(bpm: Int, date: Date = Date(), streaming: Bool = true) -> [String: Any] {
         [
@@ -35,5 +38,13 @@ enum HeartRatePayload {
             date: timestamp.map(Date.init(timeIntervalSince1970:)) ?? Date(),
             streaming: streaming
         )
+    }
+
+    // MARK: iPhone → Watch
+
+    static let stopCommand: [String: Any] = [Key.command: "stop"]
+
+    static func isStopCommand(_ dictionary: [String: Any]) -> Bool {
+        dictionary[Key.command] as? String == "stop"
     }
 }

@@ -19,6 +19,21 @@ final class PhoneConnectivity: NSObject {
         WCSession.default.activate()
     }
 
+    func sendStop() {
+        let session = WCSession.default
+        guard session.activationState == .activated else { return }
+
+        let payload = HeartRatePayload.stopCommand
+        if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil) { _ in
+                session.transferUserInfo(payload)
+            }
+        } else {
+            // Queued and guaranteed, so the Watch stops even if it's asleep right now.
+            session.transferUserInfo(payload)
+        }
+    }
+
     private func handle(_ dictionary: [String: Any]) {
         guard let sample = HeartRatePayload.decode(dictionary) else { return }
         DispatchQueue.main.async {

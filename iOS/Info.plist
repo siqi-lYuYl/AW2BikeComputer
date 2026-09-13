@@ -36,5 +36,9 @@
 	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>HR Echo advertises your Apple Watch heart rate to your bike computer as a standard Bluetooth heart rate sensor.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>HR Echo uses Health to start the heart rate session on your Apple Watch.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>HR Echo uses Health to start the heart rate session on your Apple Watch.</string>
 </dict>
 </plist>

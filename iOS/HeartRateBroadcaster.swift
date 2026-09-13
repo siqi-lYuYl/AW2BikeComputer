@@ -46,6 +46,9 @@ final class HeartRateBroadcaster: NSObject {
     private(set) var subscriberCount = 0
     private(set) var notificationsSent = 0
     private(set) var lastSampleDate: Date?
+    /// Stored rather than computed so views re-render when a reading ages out;
+    /// the keep-alive timer refreshes it once a second.
+    private(set) var isSampleFresh = false
 
     /// Name shown in the bike computer's sensor list while the app is in the foreground.
     let advertisedName = "HR Echo"
@@ -56,9 +59,12 @@ final class HeartRateBroadcaster: NSObject {
     private var wantsToAdvertise = false
     private var didAddServices = false
 
-    var isSampleFresh: Bool {
-        guard let lastSampleDate else { return false }
-        return Date().timeIntervalSince(lastSampleDate) < Self.stalenessThreshold
+    private func refreshFreshness() {
+        guard let lastSampleDate else {
+            isSampleFresh = false
+            return
+        }
+        isSampleFresh = Date().timeIntervalSince(lastSampleDate) < Self.stalenessThreshold
     }
 
     // MARK: - Lifecycle
@@ -95,6 +101,7 @@ final class HeartRateBroadcaster: NSObject {
         subscriberCount = 0
         currentBPM = nil
         lastSampleDate = nil
+        isSampleFresh = false
         status = .idle
     }
 
@@ -103,6 +110,7 @@ final class HeartRateBroadcaster: NSObject {
     func update(bpm: Int, sampledAt date: Date = Date()) {
         currentBPM = bpm
         lastSampleDate = date
+        refreshFreshness()
         notifySubscribers()
     }
 
@@ -167,6 +175,7 @@ final class HeartRateBroadcaster: NSObject {
     private func startKeepAliveTimer() {
         keepAliveTimer?.invalidate()
         let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.refreshFreshness()
             self?.notifySubscribers()
         }
         // .common keeps the 1 Hz cadence alive while the user scrolls the UI.

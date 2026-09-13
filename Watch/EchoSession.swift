@@ -5,6 +5,10 @@ import Observation
 @Observable
 final class EchoSession {
 
+    /// Shared because both the SwiftUI scene and the WKApplicationDelegate
+    /// (remote launch from the iPhone) need to drive the same session.
+    static let shared = EchoSession()
+
     let monitor = WorkoutHeartRateMonitor()
     let connectivity = WatchConnectivityClient()
 
@@ -16,6 +20,9 @@ final class EchoSession {
     init() {
         monitor.onSample = { [weak self] bpm, date in
             self?.connectivity.send(bpm: bpm, sampledAt: date)
+        }
+        connectivity.onStopCommand = { [weak self] in
+            self?.stop()
         }
         connectivity.activate()
     }
@@ -29,6 +36,7 @@ final class EchoSession {
     }
 
     func stop() {
+        guard monitor.isRunning else { return }
         if let bpm = monitor.currentBPM {
             connectivity.send(bpm: bpm, sampledAt: Date(), streaming: false)
         }

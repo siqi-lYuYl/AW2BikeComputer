@@ -5,112 +5,143 @@ struct ContentView: View {
 
     private var broadcaster: HeartRateBroadcaster { coordinator.broadcaster }
 
+    /// The heart only pounds while live readings are arriving from the Watch.
+    private var pulseBPM: Int? {
+        guard coordinator.isBroadcasting, broadcaster.isSampleFresh else { return nil }
+        return broadcaster.currentBPM
+    }
+
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 28) {
-                heartRateReadout
+        ZStack {
+            Color(.systemBackground).ignoresSafeArea()
 
-                statusPanel
-
-                Spacer()
-
-                if coordinator.isBroadcasting {
-                    pairingHint
+            ZStack {
+                if broadcaster.status.isLive {
+                    GlowRipples(color: .red)
+                        .transition(.opacity)
                 }
 
-                actionButton
+                BeatingHeart(
+                    bpm: pulseBPM,
+                    color: coordinator.isBroadcasting ? .red : Color(.systemGray4)
+                ) {
+                    if coordinator.isBroadcasting, let bpm = broadcaster.currentBPM {
+                        Text("\(bpm)")
+                            .font(.system(size: 60, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white)
+                            .contentTransition(.numericText())
+                            .animation(.snappy, value: bpm)
+                    }
+                }
+                .contentShape(.rect)
+                .onTapGesture(perform: coordinator.toggle)
             }
-            .padding()
-            .navigationTitle("HR Echo")
+            .animation(.easeInOut(duration: 0.6), value: broadcaster.status.isLive)
+
+            VStack {
+                Spacer()
+                if let caption {
+                    Text(caption)
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                        .padding(.bottom, 32)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut, value: caption)
         }
     }
 
-    private var heartRateReadout: some View {
-        VStack(spacing: 4) {
-            Text(broadcaster.currentBPM.map(String.init) ?? "—")
-                .font(.system(size: 96, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(broadcaster.isSampleFresh ? .pink : .secondary)
-                .contentTransition(.numericText())
-                .animation(.snappy, value: broadcaster.currentBPM)
-
-            Text("BPM")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.top, 24)
-    }
-
-    private var statusPanel: some View {
-        VStack(spacing: 12) {
-            statusRow(
-                label: "Apple Watch",
-                value: coordinator.connectivity.isWatchReachable ? "Connected" : "Not reachable",
-                isGood: coordinator.connectivity.isWatchReachable
-            )
-            Divider()
-            statusRow(
-                label: "Bike computer",
-                value: bluetoothStatusText,
-                isGood: broadcaster.status.isLive
-            )
-        }
-        .padding()
-        .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 12))
-    }
-
-    private func statusRow(label: String, value: String, isGood: Bool) -> some View {
-        HStack {
-            Text(label)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Circle()
-                .fill(isGood ? .green : .orange)
-                .frame(width: 8, height: 8)
-            Text(value)
-                .fontWeight(.medium)
-        }
-        .font(.subheadline)
-    }
-
-    private var bluetoothStatusText: String {
+    private var caption: String? {
         switch broadcaster.status {
-        case .idle: "Not broadcasting"
-        case .bluetoothOff: "Bluetooth is off"
-        case .unauthorized: "Bluetooth permission denied"
-        case .unsupported: "Not supported"
-        case .advertising: "Waiting to pair"
-        case .connected(let centrals): centrals == 1 ? "Paired" : "Paired (\(centrals))"
+        case .idle, .connected: nil
+        case .advertising: "Pair “\(broadcaster.advertisedName)” on your bike computer"
+        case .bluetoothOff: "Turn on Bluetooth"
+        case .unauthorized: "Allow Bluetooth for HR Echo in Settings"
+        case .unsupported: "Bluetooth isn't available on this device"
         }
-    }
-
-    private var pairingHint: some View {
-        Text(broadcaster.status.isLive
-             ? "Streaming. Keep this app open for the most reliable connection."
-             : "On your bike computer, add a new heart rate sensor and pick “\(broadcaster.advertisedName)”. Keep this screen open while pairing.")
-            .font(.footnote)
-            .multilineTextAlignment(.center)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal)
-    }
-
-    private var actionButton: some View {
-        Button {
-            if coordinator.isBroadcasting {
-                coordinator.stopBroadcasting()
-            } else {
-                coordinator.startBroadcasting()
-            }
-        } label: {
-            Text(coordinator.isBroadcasting ? "Stop Broadcasting" : "Start Broadcasting")
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .tint(coordinator.isBroadcasting ? .red : .pink)
     }
 }
 
-#Preview {
+// MARK: - Heart
+
+private let heartSize: CGFloat = 200
+
+/// A heart that pounds at a given rate. The scale follows a lub-dub curve,
+/// one full cycle per beat, so 60 BPM really is one pound per second.
+struct BeatingHeart<Label: View>: View {
+    let bpm: Int?
+    let color: Color
+    @ViewBuilder let label: () -> Label
+
+    var body: some View {
+        TimelineView(.animation(paused: bpm == nil)) { context in
+            heart.scaleEffect(scale(at: context.date))
+        }
+        .animation(.easeOut(duration: 0.4), value: color)
+    }
+
+    private var heart: some View {
+        ZStack {
+            Image(systemName: "heart.fill")
+                .font(.system(size: heartSize))
+                .foregroundStyle(color)
+            // A heart's visual centre sits a little above its bounding box centre.
+            label().offset(y: -heartSize * 0.04)
+        }
+        .frame(width: heartSize, height: heartSize)
+    }
+
+    private func scale(at date: Date) -> CGFloat {
+        guard let bpm, bpm > 0 else { return 1 }
+        let period = 60.0 / Double(bpm)
+        let phase = date.timeIntervalSinceReferenceDate
+            .truncatingRemainder(dividingBy: period) / period
+        return 1 + 0.10 * Self.lubDub(phase)
+    }
+
+    /// Two Gaussian bumps: a strong first sound and a softer second one.
+    private static func lubDub(_ phase: Double) -> Double {
+        max(bump(phase, centre: 0.08, width: 0.07), 0.45 * bump(phase, centre: 0.30, width: 0.07))
+    }
+
+    private static func bump(_ x: Double, centre: Double, width: Double) -> Double {
+        let d = (x - centre) / width
+        return exp(-d * d)
+    }
+}
+
+// MARK: - Glow
+
+/// Heart-shaped glows that expand outward and fade, staggered so one is always
+/// mid-flight. Shown only while a bike computer is subscribed.
+struct GlowRipples: View {
+    let color: Color
+
+    private let period: TimeInterval = 2.4
+    private let count = 3
+
+    var body: some View {
+        TimelineView(.animation) { context in
+            let now = context.date.timeIntervalSinceReferenceDate
+            ZStack {
+                ForEach(0..<count, id: \.self) { index in
+                    let phase = (now / period + Double(index) / Double(count))
+                        .truncatingRemainder(dividingBy: 1)
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: heartSize))
+                        .foregroundStyle(color)
+                        .scaleEffect(1 + phase * 1.8)
+                        .opacity((1 - phase) * 0.3)
+                        .blur(radius: 6 + phase * 14)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+#Preview("Idle") {
     ContentView(coordinator: BroadcastCoordinator())
 }

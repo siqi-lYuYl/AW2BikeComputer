@@ -29,6 +29,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
         PRODUCT_NAME: HeartRateEcho
         INFOPLIST_FILE: iOS/Info.plist
+        CODE_SIGN_ENTITLEMENTS: iOS/HeartRateEcho.entitlements
         TARGETED_DEVICE_FAMILY: "1"
     dependencies:
       - target: HeartRateEchoWatch

@@ -10,6 +10,9 @@ final class WatchConnectivityClient: NSObject {
 
     private(set) var isPhoneReachable = false
 
+    /// Called on the main queue when the iPhone asks us to end the session.
+    var onStopCommand: (() -> Void)?
+
     func activate() {
         guard WCSession.isSupported() else { return }
         WCSession.default.delegate = self
@@ -34,6 +37,11 @@ final class WatchConnectivityClient: NSObject {
     private func queueAsContext(_ payload: [String: Any]) {
         try? WCSession.default.updateApplicationContext(payload)
     }
+
+    private func handleCommand(_ dictionary: [String: Any]) {
+        guard HeartRatePayload.isStopCommand(dictionary) else { return }
+        DispatchQueue.main.async { self.onStopCommand?() }
+    }
 }
 
 extension WatchConnectivityClient: WCSessionDelegate {
@@ -48,5 +56,13 @@ extension WatchConnectivityClient: WCSessionDelegate {
 
     func sessionReachabilityDidChange(_ session: WCSession) {
         DispatchQueue.main.async { self.isPhoneReachable = session.isReachable }
+    }
+
+    func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        handleCommand(message)
+    }
+
+    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        handleCommand(userInfo)
     }
 }

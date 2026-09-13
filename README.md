@@ -43,14 +43,31 @@ on your iPhone — the Watch app is embedded and installs alongside it.
 Bundle identifiers derive from the `APP_BUNDLE_ID` build setting in
 `project.yml`; change it there and both targets follow.
 
+## Using it
+
+The iPhone is the only control surface. Tap the heart:
+
+- it turns **red** — the phone starts advertising and remotely launches the
+  Watch app, which begins the workout session (first run asks for Health access
+  on the Watch);
+- it starts **pounding** — live readings are arriving from the Watch, and the
+  beat follows your actual heart rate;
+- **glows** flow outward — a bike computer has paired and is receiving data.
+
+Tap again to stop both ends.
+
 ## Testing
 
-This cannot be tested in the Simulator: there is no Bluetooth radio and no heart
-rate sensor. You need a real iPhone, a real Apple Watch and a head unit.
+The Bluetooth half cannot be tested in the Simulator: there is no radio, so the
+iPhone reports "Bluetooth isn't available." Everything else can. The watchOS
+Simulator synthesises heart rate during a workout session and WatchConnectivity
+works between a paired iPhone and Watch simulator. When installing with
+`simctl`, install the Watch app first (the embedded copy under
+`HeartRateEcho.app/Watch/`) and launch it before the phone app, or the phone
+reports the counterpart as not installed.
 
-1. Open the app on the iPhone and tap **Start Broadcasting**.
-2. On the Watch, tap **Start** and grant Health access.
-3. On the bike computer, add a new heart rate sensor and select **HR Echo**.
+A real head unit needs a real iPhone and Watch. Add a new heart rate sensor on
+the bike computer and select **HR Echo**.
 
 ## Known limitations
 
