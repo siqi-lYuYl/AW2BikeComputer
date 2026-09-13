@@ -21,10 +21,7 @@ struct ContentView: View {
                         .transition(.opacity)
                 }
 
-                BeatingHeart(
-                    bpm: pulseBPM,
-                    color: coordinator.isBroadcasting ? .red : Color(.systemGray4)
-                ) {
+                BeatingHeart(bpm: pulseBPM, isActive: coordinator.isBroadcasting) {
                     if coordinator.isBroadcasting, let bpm = broadcaster.currentBPM {
                         Text("\(bpm)")
                             .font(.system(size: 60, weight: .bold, design: .rounded))
@@ -66,31 +63,58 @@ struct ContentView: View {
 
 // MARK: - Heart
 
-private let heartSize: CGFloat = 200
+private let heartWidth: CGFloat = 176
+private let heartHeight: CGFloat = 200
+private let outlineWidth: CGFloat = 2.5
+
+/// A slender heart: rounded lobes over a long, gently curved taper.
+/// Drawn in a unit square so it scales to any frame.
+struct HeartShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        func at(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + x * rect.width, y: rect.minY + y * rect.height)
+        }
+
+        var path = Path()
+        path.move(to: at(0.5, 0.97))
+        path.addCurve(to: at(0.02, 0.36), control1: at(0.33, 0.85), control2: at(0.02, 0.62))
+        path.addCurve(to: at(0.26, 0.05), control1: at(0.02, 0.17), control2: at(0.12, 0.05))
+        path.addCurve(to: at(0.5, 0.23), control1: at(0.37, 0.05), control2: at(0.46, 0.12))
+        path.addCurve(to: at(0.74, 0.05), control1: at(0.54, 0.12), control2: at(0.63, 0.05))
+        path.addCurve(to: at(0.98, 0.36), control1: at(0.88, 0.05), control2: at(0.98, 0.17))
+        path.addCurve(to: at(0.5, 0.97), control1: at(0.98, 0.62), control2: at(0.67, 0.85))
+        path.closeSubpath()
+        return path
+    }
+}
 
 /// A heart that pounds at a given rate. The scale follows a lub-dub curve,
 /// one full cycle per beat, so 60 BPM really is one pound per second.
 struct BeatingHeart<Label: View>: View {
     let bpm: Int?
-    let color: Color
+    let isActive: Bool
     @ViewBuilder let label: () -> Label
 
     var body: some View {
         TimelineView(.animation(paused: bpm == nil)) { context in
             heart.scaleEffect(scale(at: context.date))
         }
-        .animation(.easeOut(duration: 0.4), value: color)
+        .animation(.easeOut(duration: 0.45), value: isActive)
     }
 
     private var heart: some View {
         ZStack {
-            Image(systemName: "heart.fill")
-                .font(.system(size: heartSize))
-                .foregroundStyle(color)
-            // A heart's visual centre sits a little above its bounding box centre.
-            label().offset(y: -heartSize * 0.04)
+            HeartShape()
+                .stroke(Color(.systemGray3), style: StrokeStyle(lineWidth: outlineWidth, lineJoin: .round))
+                .opacity(isActive ? 0 : 1)
+            HeartShape()
+                .fill(.red)
+                .opacity(isActive ? 1 : 0)
+            // The visual centre of the shape sits a little above the frame centre.
+            label().offset(y: -heartHeight * 0.03)
         }
-        .frame(width: heartSize, height: heartSize)
+        .padding(outlineWidth)
+        .frame(width: heartWidth, height: heartHeight)
     }
 
     private func scale(at date: Date) -> CGFloat {
@@ -129,9 +153,9 @@ struct GlowRipples: View {
                 ForEach(0..<count, id: \.self) { index in
                     let phase = (now / period + Double(index) / Double(count))
                         .truncatingRemainder(dividingBy: 1)
-                    Image(systemName: "heart.fill")
-                        .font(.system(size: heartSize))
-                        .foregroundStyle(color)
+                    HeartShape()
+                        .fill(color)
+                        .frame(width: heartWidth, height: heartHeight)
                         .scaleEffect(1 + phase * 1.8)
                         .opacity((1 - phase) * 0.3)
                         .blur(radius: 6 + phase * 14)
